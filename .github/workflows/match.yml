@@ -1,0 +1,114 @@
+name: bot match
+
+# Drop the two submissions in submissions/ as a.zip and b.zip, then run this
+# workflow (or push a change to either zip, which starts it with the
+# defaults). 30 book positions, each played twice with colours reversed =
+# 60 games at 120s+0.5s, over 20 jobs of three games each -- 20 is the free
+# plan's concurrency cap, so they all run in one wave.
+on:
+  workflow_dispatch:
+    inputs:
+      ms:
+        description: "clock per side, ms"
+        default: "120000"
+      inc:
+        description: "increment per move, ms"
+        default: "500"
+      positions:
+        description: "book positions to use; games = 2x this (30 = 60 games)"
+        default: "30"
+      a:
+        description: "submissions/ zip to play as A"
+        default: "a.zip"
+      b:
+        description: "submissions/ zip to play as B"
+        default: "b.zip"
+  push:
+    paths:
+      - "submissions/a.zip"
+      - "submissions/b.zip"
+
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unpack submissions
+        run: |
+          mkdir -p engines/a engines/b
+          unzip -q "submissions/${{ inputs.a || 'a.zip' }}" -d engines/a
+          unzip -q "submissions/${{ inputs.b || 'b.zip' }}" -d engines/b
+          test -f engines/a/agent.py && test -f engines/b/agent.py
+
+      - name: Play games (shard ${{ matrix.shard }} of 20)
+        env:
+          # Keep each engine single-threaded; games share the runner.
+          NUMBA_NUM_THREADS: "1"
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          # Six compilations share a runner here, which the competition never
+          # does. Agents that finish compiling in the background after import
+          # (see candidates/me) must be allowed to finish before move one, or
+          # the contention itself decides the game.
+          CHESS_WARMUP_DEADLINE_S: "400"
+        run: |
+          python bot_arena/run_shard.py engines/a engines/b \
+            --book bot_arena/book.epd \
+            --gshard ${{ matrix.shard }} --gshards 20 \
+            --positions ${{ inputs.positions || '30' }} \
+            --ms ${{ inputs.ms || '120000' }} --inc ${{ inputs.inc || '500' }} \
+            --out results_${{ matrix.shard }}.csv \
+            --pgn games_${{ matrix.shard }}.pgn
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: |
+            results_${{ matrix.shard }}.csv
+            games_${{ matrix.shard }}.pgn
+
+  standings:
+    needs: play
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          path: shards
+          merge-multiple: true
+      - name: Merge and report
+        run: |
+          cp shards/results_*.csv . 2>/dev/null || true
+          cat shards/games_*.pgn > all_games.pgn 2>/dev/null || true
+          python bot_arena/aggregate.py | tee standings.txt
+          {
+            echo '## Match result'
+            echo '```'
+            cat standings.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final
+          path: |
+            standings.txt
+            all_games.pgn

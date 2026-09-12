@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Match Arena</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        button { padding: 10px 20px; font-size: 16px; background-color: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        button:hover { background-color: #218838; }
+        .log-box { background: #1e1e1e; color: #00ff00; padding: 15px; font-family: monospace; white-space: pre-wrap; border-radius: 5px; max-height: 400px; overflow-y: auto; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🤖 Bot Match Arena</h1>
+    <p>Upload two <code>.zip</code> files containing a <code>bot.py</code> entry point.</p>
+
+    {% if error %}
+        <p class="error">Error: {{ error }}</p>
+    {% endif %}
+
+    <form action="/run-match" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="bot1">Bot 1 (.zip):</label>
+            <input type="file" id="bot1" name="bot1" accept=".zip" required>
+        </div>
+        <div class="form-group">
+            <label for="bot2">Bot 2 (.zip):</label>
+            <input type="file" id="bot2" name="bot2" accept=".zip" required>
+        </div>
+        <button type="submit">Start Match</button>
+    </form>
+
+    {% if match_log %}
+        <h2>Match Log</h2>
+        <div class="log-box">{{ match_log }}</div>
+    {% endif %}
+</body>
+</html>

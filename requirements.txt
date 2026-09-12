@@ -1,0 +1,5 @@
+# Pinned to the versions the harness was verified against locally, so the
+# runner reproduces the same engine behaviour.
+numpy==2.2.4
+numba==0.67.0
+chess==1.11.2

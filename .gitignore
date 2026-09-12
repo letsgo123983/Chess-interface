@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+engines/
+tournament_v59_v60/
+results_*.csv
+games_*.pgn
+standings.txt
+data/
+runs/
