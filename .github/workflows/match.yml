@@ -15,8 +15,8 @@ on:
         description: "increment per move, ms"
         default: "500"
       positions:
-        description: "book positions to use; games = 2x this (30 = 60 games)"
-        default: "30"
+        description: "book positions to use; games = 2x this (50 = 100 games)"
+        default: "50"
       a:
         description: "submissions/ zip to play as A"
         default: "a.zip"
@@ -70,7 +70,7 @@ jobs:
           python bot_arena/run_shard.py engines/a engines/b \
             --book bot_arena/book.epd \
             --gshard ${{ matrix.shard }} --gshards 20 \
-            --positions ${{ inputs.positions || '30' }} \
+            --positions ${{ inputs.positions || '50' }} \
             --ms ${{ inputs.ms || '120000' }} --inc ${{ inputs.inc || '500' }} \
             --out results_${{ matrix.shard }}.csv \
             --pgn games_${{ matrix.shard }}.pgn
